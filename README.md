@@ -40,7 +40,8 @@ in different packages
 ## Authors
  * [Florin Stan](https://github.com/namtzigla)
  * [Neal Cooper](https://github.com/iamneal)
- * [Jamie Whahlin](https://github.com/jwahlin)
+ * [Jamie Wahlin](https://github.com/jwahlin)
+ * [Shayne Killeen](https://github.com/shaynekilleen)
 
 
 ## License
