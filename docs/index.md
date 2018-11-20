@@ -12,8 +12,8 @@ you activate the plugin using protoc's CLI.
 protoc -I. -I$GOPATH/src --persist_out=plugins=protoc-gen-persist:$GOPATH/src ./*.proto
 ```
 
-if you do not have fully qualified go_package options in your proto files while running protoc
-from your $GOPATH/src,  you will need to specify the persist_root option. Which is the
+If you do not have fully qualified go_package options in your proto files while running protoc
+from your $GOPATH/src, you will need to specify the persist_root option, which is the
 go package base that the persist_lib will extend from.
 
 The generated persist file needs to import persist_lib, so specify the root of the package
@@ -22,15 +22,16 @@ to do that.
 protoc -I. -I$GOPATH/src --persist_out=plugins=protoc-gen-persist,persist_root=github.com/protoc-gen-persist/examples/user_sql/pb:. ./pb/*.proto
 ```
 
-the persist plugin will generate service handlers that implement a grpc service.
+The persist plugin will generate service handlers that implement a grpc service.
 It looks at a method's stream type, input message, output message, and a few user
 specified options, and decides how the database must be structured.
 
 
-It then writes function to marshal a protobuf message to, and from the database row,
-perform iterations over a protobuf from a database's iterator, and functions that
-run the protobuf option's query on the backend.
-for example, given this [snippet from our sql examples](https://github.com/tcncloud/protoc-gen-persist/blob/master/examples/user_sql/main.go)
+It then writes functions to: marshal a protobuf message to and from the database row,
+perform iterations over a protobuf from a database's iterator, and run the protobuf 
+option's query on the backend.
+
+For example, given this [snippet from our sql examples](https://github.com/tcncloud/protoc-gen-persist/blob/master/examples/user_sql/main.go)
 ```proto
 message Friends {
 	repeated string names = 1;
@@ -320,14 +321,14 @@ It is not driver specific.
 - for spanner it uses [google's golang spanner sdk](https://godoc.org/cloud.google.com/go/spanner)
 
 
-Persist is opinionated.  It decides how to fit a protobuf message into the database, based on
+Persist is opinionated.  It decides how to fit a protobuf message into the database based on
 the types of the fields in the request/response message.  If a type does not fit in the
 database, it either converts the code to something it knows will fit,  or generates
 incorrect code.
 
 
 If the default mappings for protobuf type do not work for your database row type, you
-can provide a custom mapping, but filling out a our type mapping option on the service.
+can provide a custom mapping by filling out a type mapping option on the service. ??
 
 ### default mappings for types are
 
@@ -342,8 +343,8 @@ can provide a custom mapping, but filling out a our type mapping option on the s
 - repeated float64 is transformed into []spanner.NullFloat64[] and finally into float64
 - float64, string, and int64 types are left unconverted (because they fit)
 
-repeated enums are not supported, and will require a custom type mapping
-all other types are not supported and will require a custom type mapping
+Repeated enums are not supported and will require a custom type mapping.
+All other types are not supported and will require a custom type mapping.
 
 
 #### for sql
@@ -394,7 +395,7 @@ message TypeMapping {
         // are set, this must be one of TYPE_ENUM, TYPE_MESSAGE
         // TYPE_GROUP is not supported
         optional google.protobuf.FieldDescriptorProto.Type proto_type= 2;
-        // if proto_label is not setup we consider any option except LABAEL_REPEATED
+        // if proto_label is not setup we consider any option except LABEL_REPEATED
         optional google.protobuf.FieldDescriptorProto.Label proto_label = 3;
     }
     repeated TypeDescriptor types = 1;
@@ -503,21 +504,21 @@ func (t *TimeString) SpannerValue() (interface{}, error) {
 
 
 ### before/after hooks
-you can specify optional functions that will hook into your generated service handler
-for a method.  One runs before the query  (the before hook)  another runs after
-the query, and before results are sent back to the user.  (the after hook)
+You can specify optional functions that will hook into your generated service handler
+for a method.  The before hook runs before the query. The after hook runs after
+the query, but before results are sent back to the user. 
 
-before hooks need to take the protbuf message used as the input for the method as a parameter
-and return the (protobuf message output, error) as a response. (unless the method
-is server streaming,  then it needs to return ([]protobuf message output, error))
+Before hooks need to take the protbuf message used as the input for the method as a parameter
+and return (protobuf message output, error) as a response for unary calls and 
+([]protobuf message output, error)) for streaming calls.
 
-- if a before hook returns a non nil result, and a nil error, the query will NOT be ran,
+- If a before hook returns a non nil result and a nil error, the query will NOT run
 and the results will be returned to the client.  This is most useful for caching.
-- a pointer to the actual request is given to the before hook.  So any changes made
+- A pointer to the actual request is given to the before hook, so any changes made
 to the request object will persist over to the handler.  This could be useful for a
-number of reasons.  (auto incrementing ids stored on the server for example)
+number of reasons (auto incrementing ids stored on the server, for example).
 ```go
-// example hooks where *pb.Name is a input to the protobuf services method,
+// example hooks where *pb.Name is an input to the protobuf services method,	
 // and pb.ExampleTable is the output message for the method
 
 // server streaming before hook looks like this
@@ -533,13 +534,13 @@ func GenericBeforeHook(req *pb.Name) (*pb.ExampleTable, error) {
 }
 ```
 
-after hooks need to take the protobuf message, and protobuf response as parameters and
-return error as a response
+After hooks need to take the protobuf request and response as parameters, and
+return an error
 
 
-after hooks are ran on each row recieved from the database. Unlike before hooks,
+After hooks run on each row received from the database. Unlike before hooks,
 after hooks are not guaranteed to get the pointer to the request or response message used
-in the method.  After hooks main purpose is for their side effects.
+in the method.  After hooks' main purpose is for their side effects.
 ```go
 // an after hook for the above example's method would look like this
 func GenericAfterHook(req *pb.Name, res *pb.ExampleTable) error {
@@ -550,7 +551,7 @@ func GenericAfterHook(req *pb.Name, res *pb.ExampleTable) error {
 example of protobuf hooks on a method:
 ```proto
 service Test {
-  rpc UniaryInsertWithHooks(test.ExampleTable) returns (test.ExampleTable) {
+  rpc UnaryInsertWithHooks(test.ExampleTable) returns (test.ExampleTable) {
     option (persist.ql) = {
       query: ["insert into example_table (id, start_time, name)  Values (@id, @start_time, \"bananas\")"]
       arguments: ["id", "start_time"]
